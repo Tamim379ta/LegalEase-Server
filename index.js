@@ -24,8 +24,61 @@ async function run() {
     const database = client.db("legalease");
     const usersCollection = database.collection("user");
     const lawyersCollection = database.collection("lawyers");
+    const bookingsCollection = database.collection("bookings");
+
+
+
+    // booking related api routes
+    app.patch('/bookings/:id', async (req, res) => {
+      const { id } = req.params;
+      const { haringStatus } = req.body;
+
+      const result = await bookingsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { haringStatus } }
+      );
+
+      res.send(result);
+    });
+
+    app.get("/bookings/:id", async (req, res) => {
+      const { id } = req.params;
+
+      const query = {
+        $or: [
+          { lawyerId: id },
+          { userId: id },
+        ],
+      };
+      const booking = await bookingsCollection.find(query).toArray();
+
+      res.send(booking);
+    });
+
+
+    app.post('/bookings', async (req, res) => {
+      const booking = req.body;
+      const bookingInfo = {
+        ...booking,
+        createdAt: new Date(),
+      }
+      const result = await bookingsCollection.insertOne(bookingInfo);
+      res.send(result);
+    })
 
     // lawyer related api routes
+    app.get('/lawyers/:id', async (req, res) => {
+      const { id } = req.params;
+      const query = {
+        $or: [
+          { _id: new ObjectId(id) },
+          { lawyerId: id },
+        ],
+      };
+      const lawyer = await lawyersCollection.findOne(query);
+      res.send(lawyer);
+    })
+
     app.get('/lawyers', async (req, res) => {
       const lawyers = await lawyersCollection.find().toArray();
       res.send(lawyers);
