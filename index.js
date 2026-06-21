@@ -23,17 +23,34 @@ async function run() {
     await client.connect();
     const database = client.db("legalease");
     const usersCollection = database.collection("user");
+    const lawyersCollection = database.collection("lawyers");
 
+    // lawyer related api routes
+    app.get('/lawyers', async (req, res) => {
+      const lawyers = await lawyersCollection.find().toArray();
+      res.send(lawyers);
+    })
+
+
+    app.post('/lawyers', async (req, res) => {
+      const lawyer = req.body;
+      const lawyerInfo = {
+        ...lawyer,
+        createdAt: new Date(),
+      }
+      const result = await lawyersCollection.insertOne(lawyerInfo);
+      res.send(result);
+    })
+
+    // user related api routes
     app.get('/users', async (req, res) => {
       const users = await usersCollection.find().toArray();
       res.send(users);
     })
 
     app.patch('/users/:id', async (req, res) => {
-      const { id } = req.params; 
+      const { id } = req.params;
       const { role } = req.body;
-
-      console.log(id);
 
       const result = await usersCollection.updateOne(
         { _id: new ObjectId(id) },
