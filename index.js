@@ -25,6 +25,57 @@ async function run() {
     const usersCollection = database.collection("user");
     const lawyersCollection = database.collection("lawyers");
     const bookingsCollection = database.collection("bookings");
+    const serviceCollection = database.collection("services");
+
+
+    // lawyer services related api 
+
+    app.delete('/services/lawyers/:id', async (req, res) => {
+      const { id } = req.params;
+      const result = await serviceCollection.deleteOne({
+        _id: new ObjectId(id)
+      });
+      res.send(result)
+    });
+    app.patch('/services/lawyers/:id', async (req, res) => {
+      const { id } = req.params;
+      const { specialization, fee, status } = req.body;
+
+      const result = await serviceCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            specialization,
+            fee: Number(fee),
+            status
+          }
+        }
+      );
+      res.send(result)
+    });
+    app.get('/services/lawyers', async (req, res) => {
+      const result = await serviceCollection.find().toArray()
+      res.send(result);
+    })
+    app.get('/services/lawyers/:id', async (req, res) => {
+      const { id } = req.params;
+      const query = {
+        lawyerId: id
+      }
+      const services = await serviceCollection.find(query).toArray();
+      res.send(services);
+
+    });
+    app.post('/services', async (req, res) => {
+      const services = req.body;
+      const serviceInfo = {
+        ...services,
+        createdAt: new Date()
+      }
+      const result = await serviceCollection.insertOne(serviceInfo)
+      res.send(result)
+
+    })
 
 
 
@@ -67,6 +118,24 @@ async function run() {
     })
 
     // lawyer related api routes
+    app.patch('/lawyers/:id', async (req, res) => {
+      const { id } = req.params;
+      const { name, specialization, bio, fee, status, photoUrl } = req.body;
+      const result = await lawyersCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            name,
+            specialization,
+            bio,
+            fee: Number(fee),
+            status,
+            photoUrl
+          }
+        }
+      );
+      res.send(result)
+    });
     app.get('/lawyers/:id', async (req, res) => {
       const { id } = req.params;
       const query = {
