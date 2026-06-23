@@ -26,8 +26,40 @@ async function run() {
     const lawyersCollection = database.collection("lawyers");
     const bookingsCollection = database.collection("bookings");
     const serviceCollection = database.collection("services");
+    const paymentCollection = database.collection("payment")
 
 
+    // payment related api 
+    app.get('/payments', async (req, res) => {
+      const result = await paymentCollection.find().toArray()
+      res.send(result)
+    })
+    app.post('/payments', async (req, res) => {
+      const { lawyerId, clientId, hiringId, amount, currency, stripeSessionId, status } = req.body
+
+      const existing = await paymentCollection.findOne({ stripeSessionId })
+      if (existing) {
+        return res.send({ message: 'Already saved' })
+      }
+
+      await paymentCollection.insertOne({
+        lawyerId,
+        clientId,
+        hiringId,
+        amount,
+        currency,
+        stripeSessionId,
+        status,
+        createdAt: new Date(),
+      })
+
+      await bookingsCollection.updateOne(
+        { _id: new ObjectId(hiringId) },
+        { $set: { haringStatus: 'paid' } }
+      )
+
+      res.send({ message: 'Payment saved' })
+    })
     // lawyer services related api 
 
     app.delete('/services/lawyers/:id', async (req, res) => {
@@ -80,6 +112,11 @@ async function run() {
 
 
     // booking related api routes
+    app.get('/bookings', async (req, res) => {
+     const result = await bookingsCollection.find().toArray()
+     res.send(result)
+    })
+
     app.patch('/bookings/:id', async (req, res) => {
       const { id } = req.params;
       const { haringStatus } = req.body;
@@ -165,6 +202,14 @@ async function run() {
     })
 
     // user related api routes
+
+    app.delete('/users/:id', async (req, res) => {
+      const { id } = req.params
+      const result = await usersCollection.deleteOne({
+        _id: new ObjectId(id)
+      })
+      res.send(result)
+    })
     app.get('/users', async (req, res) => {
       const users = await usersCollection.find().toArray();
       res.send(users);
@@ -172,11 +217,14 @@ async function run() {
 
     app.patch('/users/:id', async (req, res) => {
       const { id } = req.params;
-      const { role } = req.body;
+      const updateData = req.body;
+
+      delete updateData._id;
+      delete updateData.email;
 
       const result = await usersCollection.updateOne(
         { _id: new ObjectId(id) },
-        { $set: { role } }
+        { $set: updateData }
       );
 
       res.send(result);
