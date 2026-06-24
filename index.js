@@ -155,6 +155,41 @@ async function run() {
     })
 
     // lawyer related api routes
+    app.get('/top-lawyers', async (req, res) => {
+      const topLawyers = await bookingsCollection.aggregate([
+        { $match: { haringStatus: 'paid' } },
+        { $group: { _id: '$lawyerId', totalHires: { $sum: 1 } } },
+        { $sort: { totalHires: -1 } },
+        { $limit: 3 },
+        {
+          $lookup: {
+            from: 'lawyers',
+            localField: '_id',
+            foreignField: 'lawyerId',
+            as: 'lawyer'
+          }
+        },
+        { $unwind: '$lawyer' },
+        {
+          $project: {
+            _id: 0,
+            totalHires: 1,
+            name: '$lawyer.name',
+            avatar: '$lawyer.photoUrl', // 👈 also fixed: your field is photoUrl not image
+            specialization: '$lawyer.specialization',
+            rating: '$lawyer.rating',
+            fee: '$lawyer.fee',
+          }
+        }
+      ]).toArray()
+
+      res.json(topLawyers)
+    })
+
+    app.get('/featuredlawyers', async (req, res) => {
+      const result = await lawyersCollection.find().limit(6).toArray()
+      res.send(result);
+    })
     app.patch('/lawyers/:id', async (req, res) => {
       const { id } = req.params;
       const { name, specialization, bio, fee, status, photoUrl } = req.body;
@@ -194,10 +229,24 @@ async function run() {
     })
 
     app.get('/lawyers', async (req, res) => {
-      const lawyers = await lawyersCollection.find().toArray();
-      res.send(lawyers);
-    })
+      const { search, category, page = 1, limit = 8 } = req.query
 
+      const filter = {}
+      if (category) filter.specialization = category
+      if (search) {
+        filter.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { specialization: { $regex: search, $options: 'i' } },
+          { bio: { $regex: search, $options: 'i' } },
+        ]
+      }
+
+      const skip = (Number(page) - 1) * Number(limit)
+      const total = await lawyersCollection.countDocuments(filter)
+      const lawyers = await lawyersCollection.find(filter).skip(skip).limit(Number(limit)).toArray()
+
+      res.json({ lawyers, total, page: Number(page), totalPages: Math.ceil(total / Number(limit)) })
+    })
 
     app.post('/lawyers', async (req, res) => {
       try {
@@ -213,6 +262,11 @@ async function run() {
         res.status(500).json({ error: "Internal Server Error", details: error.message });
       }
     });
+
+    app.get('/manage-lawyers', async (req,res)=> {
+      const result = await lawyersCollection.find().toArray()
+      res.send(result)
+    })
 
     // user related api routes
 
