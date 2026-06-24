@@ -113,8 +113,8 @@ async function run() {
 
     // booking related api routes
     app.get('/bookings', async (req, res) => {
-     const result = await bookingsCollection.find().toArray()
-     res.send(result)
+      const result = await bookingsCollection.find().toArray()
+      res.send(result)
     })
 
     app.patch('/bookings/:id', async (req, res) => {
@@ -185,6 +185,14 @@ async function run() {
       res.send(lawyer);
     })
 
+    app.delete('/lawyers/:id', async (req, res) => {
+      const { id } = req.params
+      const result = await lawyersCollection.deleteOne({
+        _id: new ObjectId(id)
+      })
+      res.send(result)
+    })
+
     app.get('/lawyers', async (req, res) => {
       const lawyers = await lawyersCollection.find().toArray();
       res.send(lawyers);
@@ -192,14 +200,19 @@ async function run() {
 
 
     app.post('/lawyers', async (req, res) => {
-      const lawyer = req.body;
-      const lawyerInfo = {
-        ...lawyer,
-        createdAt: new Date(),
+      try {
+        const lawyer = req.body;
+        const lawyerInfo = {
+          ...lawyer,
+          createdAt: new Date(),
+        }
+        const result = await lawyersCollection.insertOne(lawyerInfo);
+        res.status(201).json(result); // Explicitly send back json status
+      } catch (error) {
+        console.error("Database insert failed:", error);
+        res.status(500).json({ error: "Internal Server Error", details: error.message });
       }
-      const result = await lawyersCollection.insertOne(lawyerInfo);
-      res.send(result);
-    })
+    });
 
     // user related api routes
 
@@ -216,19 +229,30 @@ async function run() {
     })
 
     app.patch('/users/:id', async (req, res) => {
-      const { id } = req.params;
-      const updateData = req.body;
+      try {
+        const { id } = req.params;
+        const updateData = req.body;
 
-      delete updateData._id;
-      delete updateData.email;
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({ error: "Invalid User ID format provided" });
+        }
 
-      const result = await usersCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: updateData }
-      );
+        delete updateData._id;
+        delete updateData.email;
 
-      res.send(result);
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updateData }
+        );
+
+        res.send(result);
+      } catch (error) {
+        console.error("Failed to update user profile:", error);
+        res.status(500).json({ error: "Internal Server Error", details: error.message });
+      }
     });
+
+
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
