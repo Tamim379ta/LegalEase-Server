@@ -28,6 +28,54 @@ async function run() {
     const serviceCollection = database.collection("services");
     const paymentCollection = database.collection("payment")
     const commentCollection = database.collection('comments')
+    const sessionCollection = database.collection('session')
+
+    // middleware related api
+    const middleware = async (req, res, next) => {
+      const authHeader = req.headers?.authorization
+      if (!authHeader) {
+        return res.status(401)
+      }
+
+      const token = authHeader.split(' ')[1]
+
+      if (!token) {
+        return res.status(401)
+      }
+
+      const query = { token: token }
+      const session = await sessionCollection.findOne(query)
+      const userId = session.userId
+      const userQuery = {
+        _id: userId
+      }
+      const user = await usersCollection.findOne(userQuery)
+      req.user = user
+      next()
+    }
+    const verifyClient = (req, res, next) => {
+      if (req.user?.role !== 'client') {
+        return res.status(403)
+      }
+      next()
+    }
+
+
+    const verifyAdmin = (req, res, next) => {
+      if (req.user?.role !== 'admin') {
+        return res.status(403)
+      }
+      next()
+    }
+
+    const verifyLawyer = (req, res, next) => {
+      if (req.user?.role !== 'lawyer') {
+        return res.status(403)
+      }
+
+      next()
+    }
+
 
     // comment related api
     app.get('/comments', async (req, res) => {
@@ -35,7 +83,7 @@ async function run() {
       res.send(result)
     })
 
-    app.post('/comments', async (req, res) => {
+    app.post('/comments',middleware, async (req, res) => {
       const comment = req.body
       const commentInfo = {
         ...comment,
@@ -46,11 +94,11 @@ async function run() {
     })
 
     // payment related api 
-    app.get('/payments', async (req, res) => {
+    app.get('/payments',middleware,verifyAdmin, async (req, res) => {
       const result = await paymentCollection.find().toArray()
       res.send(result)
     })
-    app.post('/payments', async (req, res) => {
+    app.post('/payments',middleware, async (req, res) => {
       const { lawyerId, clientId, hiringId, amount, currency, stripeSessionId, status } = req.body
 
       const existing = await paymentCollection.findOne({ stripeSessionId })
@@ -78,7 +126,7 @@ async function run() {
     })
     // lawyer services related api 
 
-    app.delete('/services/lawyers/:id', async (req, res) => {
+    app.delete('/services/lawyers/:id', middleware, verifyLawyer, async (req, res) => {
       const { id } = req.params;
       const result = await serviceCollection.deleteOne({
         _id: new ObjectId(id)
@@ -105,7 +153,7 @@ async function run() {
       const result = await serviceCollection.find().toArray()
       res.send(result);
     })
-    app.get('/services/lawyers/:id', async (req, res) => {
+    app.get('/services/lawyers/:id',  async (req, res) => {
       const { id } = req.params;
       const query = {
         lawyerId: id
@@ -114,7 +162,7 @@ async function run() {
       res.send(services);
 
     });
-    app.post('/services', async (req, res) => {
+    app.post('/services',middleware, verifyLawyer, async (req, res) => {
       const services = req.body;
       const serviceInfo = {
         ...services,
@@ -133,7 +181,7 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/bookings/:id', async (req, res) => {
+    app.patch('/bookings/:id',middleware, verifyLawyer, async (req, res) => {
       const { id } = req.params;
       const { haringStatus } = req.body;
 
@@ -160,7 +208,7 @@ async function run() {
     });
 
 
-    app.post('/bookings', async (req, res) => {
+    app.post('/bookings',middleware,  async (req, res) => {
       const booking = req.body;
       const bookingInfo = {
         ...booking,
@@ -191,7 +239,7 @@ async function run() {
             _id: 0,
             totalHires: 1,
             name: '$lawyer.name',
-            avatar: '$lawyer.photoUrl', // 👈 also fixed: your field is photoUrl not image
+            avatar: '$lawyer.photoUrl',
             specialization: '$lawyer.specialization',
             rating: '$lawyer.rating',
             fee: '$lawyer.fee',
@@ -279,7 +327,7 @@ async function run() {
       }
     });
 
-    app.get('/manage-lawyers', async (req, res) => {
+    app.get('/manage-lawyers', middleware, verifyAdmin, async (req, res) => {
       const result = await lawyersCollection.find().toArray()
       res.send(result)
     })
