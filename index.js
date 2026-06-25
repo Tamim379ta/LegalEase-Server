@@ -133,7 +133,7 @@ async function run() {
       });
       res.send(result)
     });
-    app.patch('/services/lawyers/:id', async (req, res) => {
+    app.patch('/services/lawyers/:id',middleware,verifyLawyer, async (req, res) => {
       const { id } = req.params;
       const { specialization, fee, status } = req.body;
 
@@ -149,7 +149,7 @@ async function run() {
       );
       res.send(result)
     });
-    app.get('/services/lawyers', async (req, res) => {
+    app.get('/services/lawyers',middleware,verifyLawyer, async (req, res) => {
       const result = await serviceCollection.find().toArray()
       res.send(result);
     })
@@ -176,7 +176,7 @@ async function run() {
 
 
     // booking related api routes
-    app.get('/bookings', async (req, res) => {
+    app.get('/bookings', middleware,async (req, res) => {
       const result = await bookingsCollection.find().toArray()
       res.send(result)
     })
@@ -292,7 +292,7 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/lawyers', async (req, res) => {
+    app.get('/lawyers',middleware,verifyAdmin, async (req, res) => {
       const { search, category, page = 1, limit = 8 } = req.query
 
       const filter = {}
@@ -341,7 +341,7 @@ async function run() {
       })
       res.send(result)
     })
-    app.get('/users', async (req, res) => {
+    app.get('/users',middleware,verifyAdmin, async (req, res) => {
       const users = await usersCollection.find().toArray();
       res.send(users);
     })
