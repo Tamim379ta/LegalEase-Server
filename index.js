@@ -27,7 +27,23 @@ async function run() {
     const bookingsCollection = database.collection("bookings");
     const serviceCollection = database.collection("services");
     const paymentCollection = database.collection("payment")
+    const commentCollection = database.collection('comments')
 
+    // comment related api
+    app.get('/comments', async (req, res) => {
+      const result = await commentCollection.find().toArray()
+      res.send(result)
+    })
+
+    app.post('/comments', async (req, res) => {
+      const comment = req.body
+      const commentInfo = {
+        ...comment,
+        createdAt: new Date()
+      }
+      const result = await commentCollection.insertOne(commentInfo)
+      res.send(result)
+    })
 
     // payment related api 
     app.get('/payments', async (req, res) => {
@@ -263,7 +279,7 @@ async function run() {
       }
     });
 
-    app.get('/manage-lawyers', async (req,res)=> {
+    app.get('/manage-lawyers', async (req, res) => {
       const result = await lawyersCollection.find().toArray()
       res.send(result)
     })
@@ -287,21 +303,20 @@ async function run() {
         const { id } = req.params;
         const updateData = req.body;
 
-        if (!ObjectId.isValid(id)) {
-          return res.status(400).json({ error: "Invalid User ID format provided" });
-        }
-
         delete updateData._id;
         delete updateData.email;
 
+        const query = ObjectId.isValid(id)
+          ? { _id: new ObjectId(id) }
+          : { id: id };
+
         const result = await usersCollection.updateOne(
-          { _id: new ObjectId(id) },
+          query,
           { $set: updateData }
         );
 
         res.send(result);
       } catch (error) {
-        console.error("Failed to update user profile:", error);
         res.status(500).json({ error: "Internal Server Error", details: error.message });
       }
     });
