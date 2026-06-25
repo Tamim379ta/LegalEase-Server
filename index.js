@@ -20,7 +20,7 @@ const client = new MongoClient(uri, {
 });
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
     const database = client.db("legalease");
     const usersCollection = database.collection("user");
     const lawyersCollection = database.collection("lawyers");
@@ -34,13 +34,19 @@ async function run() {
     const middleware = async (req, res, next) => {
       const authHeader = req.headers?.authorization
       if (!authHeader) {
-        return res.status(401)
+        return res.status(401).send({
+          success: false,
+          message: "Unauthorized access"
+        });
       }
 
       const token = authHeader.split(' ')[1]
 
       if (!token) {
-        return res.status(401)
+        return res.status(401).send({
+          success: false,
+          message: "Unauthorized access"
+        });
       }
 
       const query = { token: token }
@@ -55,7 +61,10 @@ async function run() {
     }
     const verifyClient = (req, res, next) => {
       if (req.user?.role !== 'client') {
-        return res.status(403)
+        return res.status(403).send({
+          success: false,
+          message: "Forbidden access"
+        });
       }
       next()
     }
@@ -63,14 +72,20 @@ async function run() {
 
     const verifyAdmin = (req, res, next) => {
       if (req.user?.role !== 'admin') {
-        return res.status(403)
+        return res.status(403).send({
+          success: false,
+          message: "Forbidden access"
+        });
       }
       next()
     }
 
     const verifyLawyer = (req, res, next) => {
       if (req.user?.role !== 'lawyer') {
-        return res.status(403)
+        return res.status(403).send({
+          success: false,
+          message: "Forbidden access"
+        });
       }
 
       next()
@@ -83,7 +98,7 @@ async function run() {
       res.send(result)
     })
 
-    app.post('/comments',middleware, async (req, res) => {
+    app.post('/comments', middleware, async (req, res) => {
       const comment = req.body
       const commentInfo = {
         ...comment,
@@ -94,11 +109,11 @@ async function run() {
     })
 
     // payment related api 
-    app.get('/payments',middleware,verifyAdmin, async (req, res) => {
+    app.get('/payments', middleware, verifyAdmin, async (req, res) => {
       const result = await paymentCollection.find().toArray()
       res.send(result)
     })
-    app.post('/payments',middleware, async (req, res) => {
+    app.post('/payments', middleware, async (req, res) => {
       const { lawyerId, clientId, hiringId, amount, currency, stripeSessionId, status } = req.body
 
       const existing = await paymentCollection.findOne({ stripeSessionId })
@@ -133,7 +148,7 @@ async function run() {
       });
       res.send(result)
     });
-    app.patch('/services/lawyers/:id',middleware,verifyLawyer, async (req, res) => {
+    app.patch('/services/lawyers/:id', middleware, verifyLawyer, async (req, res) => {
       const { id } = req.params;
       const { specialization, fee, status } = req.body;
 
@@ -149,11 +164,11 @@ async function run() {
       );
       res.send(result)
     });
-    app.get('/services/lawyers',middleware,verifyLawyer, async (req, res) => {
+    app.get('/services/lawyers',   async (req, res) => {
       const result = await serviceCollection.find().toArray()
       res.send(result);
     })
-    app.get('/services/lawyers/:id',  async (req, res) => {
+    app.get('/services/lawyers/:id', async (req, res) => {
       const { id } = req.params;
       const query = {
         lawyerId: id
@@ -162,7 +177,7 @@ async function run() {
       res.send(services);
 
     });
-    app.post('/services',middleware, verifyLawyer, async (req, res) => {
+    app.post('/services', middleware, verifyLawyer, async (req, res) => {
       const services = req.body;
       const serviceInfo = {
         ...services,
@@ -176,12 +191,12 @@ async function run() {
 
 
     // booking related api routes
-    app.get('/bookings', middleware,async (req, res) => {
+    app.get('/bookings',  async (req, res) => {
       const result = await bookingsCollection.find().toArray()
       res.send(result)
     })
 
-    app.patch('/bookings/:id',middleware, verifyLawyer, async (req, res) => {
+    app.patch('/bookings/:id', middleware, verifyLawyer, async (req, res) => {
       const { id } = req.params;
       const { haringStatus } = req.body;
 
@@ -208,7 +223,7 @@ async function run() {
     });
 
 
-    app.post('/bookings',middleware,  async (req, res) => {
+    app.post('/bookings', middleware, async (req, res) => {
       const booking = req.body;
       const bookingInfo = {
         ...booking,
@@ -292,7 +307,7 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/lawyers',middleware,verifyAdmin, async (req, res) => {
+    app.get('/lawyers', async (req, res) => {
       const { search, category, page = 1, limit = 8 } = req.query
 
       const filter = {}
@@ -341,7 +356,7 @@ async function run() {
       })
       res.send(result)
     })
-    app.get('/users',middleware,verifyAdmin, async (req, res) => {
+    app.get('/users', middleware, verifyAdmin, async (req, res) => {
       const users = await usersCollection.find().toArray();
       res.send(users);
     })
@@ -370,8 +385,8 @@ async function run() {
     });
 
 
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
   }
 }
